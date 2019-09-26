@@ -3,7 +3,12 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <winsock2.h>
+#include <libavcodec/avcodec.h>
+#include <libavutil/avutil.h>
+#include <libavutil/mem.h>
+#include <libswscale/swscale.h>
 //#include "tello.h"
+#include "udp.h"
 
 static struct sockaddr_in recv_addr, send_addr, recv_addrv;
 static int sock,sockv;
@@ -58,11 +63,62 @@ void udp_poll (void) {
     if (size > 0) {
     	//tello_recv( buf );
     }
-
-    video_receive();
 }
-// video data receive
 
+/*
+ * H264 decode
+ */
+static AVCodecContext        *context;
+static AVFrame               *frame;
+static AVCodec               *codec;
+static AVCodecParserContext  *parser;
+
+void h264_decoder_init(void) {
+	  //avcodec_register_all();
+
+	  codec = avcodec_find_decoder(AV_CODEC_ID_H264);
+	  if (!codec) {
+		  printf("cannot find decoder\n");
+		  return;
+	  }
+
+	  context = avcodec_alloc_context3(codec);
+	  if (!context) {
+		  printf("cannot allocate context\n");
+		  return;
+	  }
+
+	  if(codec->capabilities & AV_CODEC_CAP_TRUNCATED) {
+	    context->flags |= AV_CODEC_FLAG_TRUNCATED;
+	  }
+
+	  int err = avcodec_open2(context, codec, NULL);
+	  if (err < 0) {
+		  printf("cannot open context");
+		  return;
+	  }
+
+	  parser = av_parser_init(AV_CODEC_ID_H264);
+	  if (!parser) {
+	    printf("cannot init parser");
+	    return;
+	  }
+
+	  frame = av_frame_alloc();
+	  if (!frame) {
+		  printf("cannot allocate frame");
+		  return;
+	  }
+
+/*	  pkt = new AVPacket;
+if (!pkt)
+	    throw H264InitFailure("cannot allocate packet");
+	  av_init_packet(pkt);
+	}
+*/
+}
+
+// video data receive
 #define videoBufSize 80000
 char packet_data[videoBufSize];
 
@@ -73,12 +129,6 @@ struct TelloVideo
 	int  Ar_id;
 };
 struct TelloVideo tellov;	
-
-void video_receive_start(void) {
-	DWORD dwThreadId;
-	hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ThreadProc, &sockv, 0, &dwThreadId);
-	return;
-}
 
 int video_receive(void) {
 	static TCHAR  szData[2018];			// receive buffer
@@ -129,9 +179,19 @@ DWORD WINAPI ThreadProc(LPVOID lpParamater)
 	printf("UDP receive start! from port=%d\n",ntohs(recv_addrv.sin_port));		// print once
 
 	while (!g_bExitThread) {
+		if (video_receive() < 0) {
+			break;
+		}
 		Sleep(1);
 	}
 	return 0;
 }
+
+void video_receive_start(void) {
+	DWORD dwThreadId;
+	hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ThreadProc, &sockv, 0, &dwThreadId);
+	return;
+}
+
 
 
