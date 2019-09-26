@@ -72,6 +72,7 @@ static AVCodecContext        *context;
 static AVFrame               *frame;
 static AVCodec               *codec;
 static AVCodecParserContext  *parser;
+static AVPacket				 *pkt;
 
 void video_init(void) {
 	  //avcodec_register_all();
@@ -109,12 +110,13 @@ void video_init(void) {
 		  printf("cannot allocate frame");
 		  return;
 	  }
-/*	  pkt = new AVPacket;
-if (!pkt)
-	    throw H264InitFailure("cannot allocate packet");
-	  av_init_packet(pkt);
-	}
-*/
+	  pkt = av_packet_alloc();
+	  if (!pkt) {
+		  printf("cannot allocate packet");
+		  return;
+	  }else{
+		  av_init_packet(pkt);
+	  }
 }
 
 // video data receive
@@ -135,6 +137,7 @@ int video_receive(void) {
 	static int    frame_length=0;
 	int    nLen = sizeof(szData);
 	int    nResult;
+	int	   nread;
 
 	memset((char *)szData, 0, sizeof(szData));
 	nResult = recv(sockv, (char *)szData, nLen, 0);
@@ -151,6 +154,22 @@ int video_receive(void) {
 			if (nResult != 1460) {	// end of frame?  if yes, process below
 				printf("1460バイト以外の　最後の%dバイトを受信しました。\n", nResult);
 	//			tellov.lastframe = h264_decode(packet_data);
+
+				nread = av_parser_parse2(parser, context, &pkt->data, &pkt->size,
+				                         packet_data, frame_length,
+				                         0, 0, AV_NOPTS_VALUE);
+
+				if (pkt->size > 0) {
+					int got_picture = 0;
+					avcodec_decode_video2(context, frame, &got_picture, pkt);
+					if (nread < 0 || got_picture == 0) {
+						printf ("error decoding frame\n");
+						return -2;
+					}
+
+					// Now I got a frame!
+				}
+
 				memcpy((char *)tellov.lastframe, (char *)packet_data, frame_length);
 				printf("1 frame is received size=%d\n",frame_length);
 				memset((char *)packet_data, 0, sizeof(packet_data));
