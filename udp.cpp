@@ -3,10 +3,12 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <winsock2.h>
+
+extern "C" {
+#define __STDC_CONSTANT_MACROS // is it ok?
 #include <libavcodec/avcodec.h>
-#include <libavutil/avutil.h>
-#include <libavutil/mem.h>
-#include <libswscale/swscale.h>
+}
+
 //#include "tello.h"
 #include "udp.h"
 
@@ -121,7 +123,7 @@ void video_init(void) {
 
 // video data receive
 #define videoBufSize 80000
-char packet_data[videoBufSize];
+uint8_t packet_data[videoBufSize];
 
 struct TelloVideo
 {
@@ -166,8 +168,8 @@ int video_receive(void) {
 						printf ("error decoding frame\n");
 						return -2;
 					}
-
 					// Now I got a frame!
+
 				}
 
 				memcpy((char *)tellov.lastframe, (char *)packet_data, frame_length);
