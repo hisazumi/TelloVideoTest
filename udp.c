@@ -73,7 +73,7 @@ static AVFrame               *frame;
 static AVCodec               *codec;
 static AVCodecParserContext  *parser;
 
-void h264_decoder_init(void) {
+void video_init(void) {
 	  //avcodec_register_all();
 
 	  codec = avcodec_find_decoder(AV_CODEC_ID_H264);
@@ -109,7 +109,6 @@ void h264_decoder_init(void) {
 		  printf("cannot allocate frame");
 		  return;
 	  }
-
 /*	  pkt = new AVPacket;
 if (!pkt)
 	    throw H264InitFailure("cannot allocate packet");

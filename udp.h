@@ -5,6 +5,7 @@ void udp_open (void);
 void udp_close (void);
 void udp_send (const char *cmd);
 void udp_poll (void);
+void video_init (void);
 int video_receive (void);
 void video_receive_start (void);
 
