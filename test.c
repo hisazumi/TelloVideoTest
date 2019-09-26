@@ -6,6 +6,5 @@ int main (int argc, char *argv[]) {
 	video_init();
 
 	printf("hello world\n");
-	while(1);
 	return 0;
 }
