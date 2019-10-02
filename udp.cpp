@@ -77,7 +77,7 @@ static AVCodecParserContext  *parser;
 static AVPacket				 *pkt;
 
 void video_init(void) {
-	  //avcodec_register_all();
+	  avcodec_register_all();
 
 	  codec = avcodec_find_decoder(AV_CODEC_ID_H264);
 	  if (!codec) {
@@ -149,13 +149,13 @@ int video_receive(void) {
 		return -1;
 	} else if (nResult > 0) {
 		frame_length += nResult;
-		if (frame_length < videoBufSize) {	// farme長が80000バイトより大きくなって（受信オーバフローで）なかったらコピー
+		if (frame_length < videoBufSize) {
+			// farme長が80000バイトより大きくなって（受信オーバフローで）なかったらコピー
 			memcpy((char *)packet_data + bufp, (char *)szData, nResult);
 
 			bufp += nResult;
 			if (nResult != 1460) {	// end of frame?  if yes, process below
-				printf("1460バイト以外の　最後の%dバイトを受信しました。\n", nResult);
-	//			tellov.lastframe = h264_decode(packet_data);
+				// printf("recived last %d bytes\n", nResult);
 
 				nread = av_parser_parse2(parser, context, &pkt->data, &pkt->size,
 				                         packet_data, frame_length,
@@ -163,27 +163,29 @@ int video_receive(void) {
 
 				if (pkt->size > 0) {
 					int got_picture = 0;
+					printf("pkt->size %d decoding\n", pkt->size);
 					avcodec_decode_video2(context, frame, &got_picture, pkt);
 					if (nread < 0 || got_picture == 0) {
 						printf ("error decoding frame\n");
-						return -2;
+						return 1;
 					}
-					// Now I got a frame!
 
+					// Now I got a frame!
+					printf("now i got a frame\n");
 				}
 
-				memcpy((char *)tellov.lastframe, (char *)packet_data, frame_length);
-				printf("1 frame is received size=%d\n",frame_length);
+				//printf("1 frame is received size=%d\n",frame_length);
 				memset((char *)packet_data, 0, sizeof(packet_data));
 				bufp = frame_length = 0;
 			}
 			else {
+				// printf("received 1460 bytes\n"); // what happened?
 			}
 		}
 		else {	// farme長が80000バイトより大きくなった（受信オーバフロー）らデータを捨てる
 			bufp = frame_length = 0;
 			memset((char *)packet_data, 0, sizeof(packet_data));
-			printf("オーバフローしたデータを捨てました\n");
+			printf("buffer overflow. some packets ignored.\n");
 		}
 	}
 	else {
